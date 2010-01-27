@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 2.6)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/ext/local/share/opencv")
+
+ 
+#find_package(Qt4 REQUIRED)
+#include(${QT_USE_FILE})
+
+
+find_package(Boost COMPONENTS date_time filesystem iostreams math_tr1 serialization signals system thread program_options)
+
+include_directories(${Boost_INCLUDE_DIR})
+include_directories("${CMAKE_SOURCE_DIR}")
+#include_directories("include")
+#include_directories("lib")
+
+FIND_PACKAGE(OpenCV REQUIRED )
+
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -march=i686 -msse -msse2")
+
+
+
+
+add_executable(track track.cpp)
+add_executable(lkdemo lkdemo.c)
+target_link_libraries(track ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
+target_link_libraries(lkdemo ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
