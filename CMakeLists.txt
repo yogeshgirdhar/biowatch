@@ -21,7 +21,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -march=i686 -msse -msse2")
 
 
 
-add_executable(track track.cpp)
-add_executable(lkdemo lkdemo.c)
+add_executable(track track.cpp utils.cpp)
+#add_executable(lkdemo lkdemo.c)
 target_link_libraries(track ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
-target_link_libraries(lkdemo ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
+#target_link_libraries(lkdemo ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
