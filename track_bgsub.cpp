@@ -1,6 +1,7 @@
 #include <cv.h>
 #include <highgui.h>
 #include <iostream>
+#include <fstream>
 using namespace std;
 
 void imgswap(cv::Mat& img1, cv::Mat& img2){
@@ -28,6 +29,7 @@ cv::Mat measure_ant(cv::Mat& img, cv::Mat& measurement){
   return measurement;
 }
 */
+
 int main(int argc, char* argv[]){
 
   string filename(argv[1]);
@@ -55,6 +57,7 @@ int main(int argc, char* argv[]){
   std::vector<cv::Point2f> points;
   cv::Point2f state;
   cv::RotatedRect rect;
+  std::ofstream out("out.txt");
   while(video.grab()){
     count++;
     video.retrieve(image_tmp);
@@ -76,32 +79,30 @@ int main(int argc, char* argv[]){
       for(int c=0;c<observation.cols;c++){
 	if(observation(r,c)==1.0){
 	  points.push_back(cv::Point_<int>(c,r));
+	  //state = state + 
 	}
       }
     }
-    cerr<<"points="<<points.size()<<endl;
+    //cerr<<"points="<<points.size()<<endl;
     if(points.size()>=1){
-      //      rect = cv::fitEllipse(points);
       rect = cv::minAreaRect(points);
+      rect.angle+=90;
       cv::ellipse(image_tmp, rect, cv::Scalar(255,0,0));
-      //cv::Vec4f line;
-      //      cv::fitLine(points, line, CV_DIST_L2, 0, 0.01 ,0.01 );
-
-      //cv::line(image, cv::Point(line.
     }
+    out<<rect.center.x<<" "<<(float)image_tmp.rows-rect.center.y<<" "<<rect.size.width<<" "<<rect.size.height<<" "<<rect.angle<<" "<<points.size()<<endl;
+    cerr<<rect.center.x<<" "<<(float)image_tmp.rows-rect.center.y<<" "<<rect.size.width<<" "<<rect.size.height<<" "<<rect.angle<<" "<<points.size()<<endl;
 
 
-    /* cv::circle(image_fp,cv::Point((int)kalman.statePost.at<float>(0,0), 
-				   (int)kalman.statePost.at<float>(1,0))
-	       ,10,cv::Scalar(255.0,0.0,0.5));
-    */
     cv::imshow(filename, image_tmp);	
     cv::imshow("bg", accum_image_01);	
     cv::imshow("ant", observation);	
 
     int c = cvWaitKey(10);
-    if( (char) c == 27 )
-      break;
+    switch((char) c){
+    case 27:
+      return 0; break;
+    }
+
     std::swap(image_tmp,image_rgb_last);
     //    imgswap(image,image0);
   }
