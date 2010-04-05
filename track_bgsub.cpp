@@ -31,7 +31,10 @@ cv::Mat measure_ant(cv::Mat& img, cv::Mat& measurement){
 */
 
 int main(int argc, char* argv[]){
-
+  if(argc < 2){
+    cerr<<"Usage: "<<argv[0]<<" <videofilename>"<<endl;
+    exit(0);
+  }
   string filename(argv[1]);
   cv::VideoCapture video(filename);
   cerr<<(video.isOpened()?": OK":": FAIL")<<endl;
@@ -57,7 +60,7 @@ int main(int argc, char* argv[]){
   std::vector<cv::Point2f> points;
   cv::Point2f state;
   cv::RotatedRect rect;
-  std::ofstream out("out.txt");
+  std::ofstream out(filename+".out.txt");
   while(video.grab()){
     count++;
     video.retrieve(image_tmp);
