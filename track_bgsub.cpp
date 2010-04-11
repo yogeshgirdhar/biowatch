@@ -42,6 +42,7 @@ int main(int argc, char* argv[]){
   string filename(argv[1]);
   fs::path pathname(argv[1]);
   std::string dirname  = pathname.parent_path().string();
+  if(dirname=="") dirname="./";
   std::string basename = boost::filesystem::basename (pathname);
 
   cerr<<dirname<<"  "<<basename<<endl;
