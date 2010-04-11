@@ -2,7 +2,10 @@
 #include <highgui.h>
 #include <iostream>
 #include <fstream>
+#include <boost/filesystem.hpp>
+
 using namespace std;
+namespace fs = boost::filesystem;
 
 void imgswap(cv::Mat& img1, cv::Mat& img2){
   cv::Mat img3;
@@ -36,14 +39,22 @@ int main(int argc, char* argv[]){
     exit(0);
   }
   string filename(argv[1]);
+  fs::path pathname(argv[1]);
+  std::string dirname  = pathname.parent_path().string();
+  std::string basename = boost::filesystem::basename (pathname);
+
+  cerr<<dirname<<"  "<<basename<<endl;
+
   cv::VideoCapture video(filename);
   cerr<<(video.isOpened()?": OK":": FAIL")<<endl;
 
   cv::Mat image, image_tmp, image_rgb_last, motion;
   cv::Mat_<float> accum_image(image_tmp.size(),0.0);
-  cv::Mat_<float> accum_image_01(image_tmp.size(),0.0);
+  //  cv::Mat_<float> accum_image_01(image_tmp.size(),0.0);
   cv::Mat_<float> image_fp(image_tmp.size());
-  cv::Mat_<float> observation(image_tmp.size());
+  cv::Mat_<float> image_sans_obs(image_tmp.size());
+  cv::Mat_<float> observation(image_tmp.size(),0.0);
+  cv::Mat_<float> dilated_observation(image_tmp.size(),0.0);
 
 
   video.grab();
@@ -60,22 +71,29 @@ int main(int argc, char* argv[]){
   std::vector<cv::Point2f> points;
   cv::Point2f state;
   cv::RotatedRect rect;
-  std::ofstream out(filename+".out.txt");
+
+  std::ofstream out(dirname+"/"+basename+"_data.txt");
   while(video.grab()){
     count++;
     video.retrieve(image_tmp);
     cv::cvtColor(image_tmp, image, CV_BGR2GRAY);
     image.convertTo(image_fp, CV_32F, 1.0/256.0);
+
+    if(!points.empty()){
+      cv::dilate(observation,observation,cv::Mat());
+    //image_sans_obs =(1.0-observation).mul(image_fp) + observation.mul(accum_image);
+    }
     cv::accumulateWeighted(image_fp, accum_image,0.01);
-    accum_image_01 = accum_image *1.0;
-    cv::absdiff(image_fp, accum_image_01, observation);
+    //    cv::accumulateWeighted(image_sans_obs, accum_image,0.01);
+								      //    accum_image_01 = accum_image *1.0;
+    cv::absdiff(image_fp, accum_image, observation);
 
 
     double min, max;
     cv::Point minLoc, maxLoc;
     cv::minMaxLoc(image_fp,&min, &max, &minLoc, &maxLoc);
-    double T = (max-min)/4.0;
-    cv::threshold(observation,observation, T, 1.0, CV_THRESH_BINARY);
+    double T = min+(max-min)/4.0;
+    cv::threshold(observation,dilated_observation, T, 1.0, CV_THRESH_BINARY);
     points.clear();
     state=cv::Point2f(0,0);
     for(int r=0;r<observation.rows;r++){
@@ -97,15 +115,20 @@ int main(int argc, char* argv[]){
 
 
     cv::imshow(filename, image_tmp);	
-    cv::imshow("bg", accum_image_01);	
+    cv::imshow("bg", accum_image);	
     cv::imshow("ant", observation);	
+
 
     int c = cvWaitKey(10);
     switch((char) c){
     case 27:
       return 0; break;
+    case 'b':
+      cv::Mat bgimg;
+      accum_image.convertTo(bgimg,CV_8U,256.0);
+      cv::imwrite(dirname+"/"+basename+"_bg.jpg",bgimg);
+      break;
     }
-
     std::swap(image_tmp,image_rgb_last);
     //    imgswap(image,image0);
   }
