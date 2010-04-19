@@ -3,9 +3,13 @@
 #include <iostream>
 #include <fstream>
 #include <boost/filesystem.hpp>
-
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/variables_map.hpp>
+#include "track.hpp"
 using namespace std;
 namespace fs = boost::filesystem;
+namespace H = entropy;
+namespace po = boost::program_options;
 
 void imgswap(cv::Mat& img1, cv::Mat& img2){
   cv::Mat img3;
@@ -14,40 +18,53 @@ void imgswap(cv::Mat& img1, cv::Mat& img2){
   img2=img3;
 }
 
-/*
-cv::Mat measure_ant(cv::Mat& img, cv::Mat& measurement){
+///process program options..
+///output is variables_map args
+int process_program_options(int argc, char*argv[], po::variables_map& args){
+  po::options_description desc("Tracks an ant. \nOutputs results in the same directory as the input filename.\nHit b to take background image.\n\n Options are");
+  desc.add_options()
+    ("help", "help")
+    ("video", po::value<string>(),"Video file")
+    //("camera", po::value<int>(),"Camera: device id")
+    ("scale", po::value<double>()->default_value(1),"scaling")
+    ("subsample", po::value<int>()->default_value(1),"Temporal subsampling rate for input video.")
+    ("maxlen", po::value<int>()->default_value(15),"Maximum length of the object (post scaling)")
+    //("fps",po::value<double>()->default_value(-1),"fps for input")
+    ("senstivity", po::value<double>()->default_value(4),"2 = low, 4 = mid (default), 10=high")
+    ;
+
+  po::positional_options_description pos_desc;
+  pos_desc.add("video", -1);
   
-  double min, max;
-  cv::Point minLoc, maxLoc;
-  cv::minMaxLoc(img,&min, &max, &minLoc, &maxLoc);
-  double T = (max-min)/2.0;
-  cv::Mat timg;
-  cv::threshold(img,timg, T, 1.0, THRESH_BINARY);
 
-  measurement.at<float>(0,0)=(float)maxLoc.x;
-  measurement.at<float>(1,0)=(float)maxLoc.y;
-  measurement.at<float>(2,0)=(float)0;
-  measurement.at<float>(3,0)=(float)0;
+  po::store(po::command_line_parser(argc, argv).options(desc).positional(pos_desc).run(), args);
+  //po::store(po::command_line_parser(argc, argv).options(desc).run(), args);
+  po::notify(args);    
 
-  return measurement;
-}
-*/
-
-int main(int argc, char* argv[]){
-  if(argc < 2){
-    cerr<<"Usage: "<<argv[0]<<" <videofilename>"<<endl;
+  if (args.count("help")) {
+    cout << desc << "\n";
     exit(0);
   }
-  int MAX_ANT_AREA=60;
-  string filename(argv[1]);
+  return 0;
+}
+
+int main(int argc, char* argv[]){
+  po::variables_map ARGS;
+  process_program_options(argc,argv, ARGS);
+  //int MAX_ANT_AREA=60;
+  double senstivity =ARGS["senstivity"].as<double>();
+  int max_ant_len = ARGS["maxlen"].as<int>();
+  string filename=ARGS["video"].as<string>();
   fs::path pathname(argv[1]);
   std::string dirname  = pathname.parent_path().string();
-  if(dirname=="") dirname="./";
+  if(dirname=="") dirname=".";
   std::string basename = boost::filesystem::basename (pathname);
 
-  cerr<<dirname<<"  "<<basename<<endl;
+  cerr<<"Opening "<<filename;
 
-  cv::VideoCapture video(filename);
+  //cv::VideoCapture video(filename);
+  H::ImageSource video(filename, ARGS["subsample"].as<int>(), ARGS["scale"].as<double>(),false);
+
   cerr<<(video.isOpened()?": OK":": FAIL")<<endl;
 
   cv::Mat image, image_tmp, image_rgb_last, motion;
@@ -101,7 +118,7 @@ int main(int argc, char* argv[]){
     double min, max;
     cv::Point minLoc, maxLoc;
     cv::minMaxLoc(image_fp,&min, &max, &minLoc, &maxLoc);
-    double T = min+(max-min)/4.0;
+    double T = min+(max-min)/senstivity;
     cv::threshold(observation,observationT, T, 1.0, CV_THRESH_BINARY);
     points.clear();
     state=cv::Point2f(0,0);
@@ -118,7 +135,8 @@ int main(int argc, char* argv[]){
       rect = cv::minAreaRect(points);
       rect.angle+=90;
 
-      if(rect.size.width*rect.size.height < MAX_ANT_AREA)
+      //if(rect.size.width*rect.size.height < MAX_ANT_AREA)
+      if(rect.size.width < max_ant_len && rect.size.height < max_ant_len)
 	locked=true;
       else
 	locked=false;
@@ -132,14 +150,14 @@ int main(int argc, char* argv[]){
 	cv::ellipse(image_tmp, rect, cv::Scalar(0,0,255));
       }
     }
-    out<<count<<" "
+    out<<video.frame_number()<<" "
        <<last_locked_rect.center.x<<" "
        <<(float)image_tmp.rows-last_locked_rect.center.y<<" "
        <<last_locked_rect.size.width<<" "
        <<last_locked_rect.size.height<<" "
        <<last_locked_rect.angle<<" "
        <<(int)locked<<endl;
-    cerr<<count<<" "
+    cerr<<video.frame_number()<<" "
 	<<last_locked_rect.center.x<<" "
 	<<(float)image_tmp.rows-last_locked_rect.center.y<<" "
 	<<last_locked_rect.size.width<<" "
@@ -150,7 +168,7 @@ int main(int argc, char* argv[]){
 
     cv::imshow(filename, image_tmp);	
     cv::imshow("bg", accum_image);	
-    cv::imshow("ant", observation);	
+    cv::imshow("ant", observationT);	
 
 
     int c = cvWaitKey(10);

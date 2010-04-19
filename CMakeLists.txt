@@ -21,13 +21,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -march=i686 -msse -msse2")
 
 
 
-add_executable(track track.cpp)
-add_executable(lkdemo lkdemo.c)
-add_executable(track_bgsub track_bgsub.cpp)
-add_executable(track_pf track_pf.cpp)
+#add_library(track image_source.cpp)
+#add_executable(lkdemo lkdemo.c)
+add_executable(track_bgsub track_bgsub.cpp image_source.cpp)
+#add_executable(track_pf track_pf.cpp)
 
-target_link_libraries(track ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
-target_link_libraries(track_bgsub ${OpenCV_LIBS}
-${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
-target_link_libraries(track_pf ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
-target_link_libraries(lkdemo ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
+#target_link_libraries(track ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
+target_link_libraries(track_bgsub ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY})
+#target_link_libraries(track_pf ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
+#target_link_libraries(lkdemo ${OpenCV_LIBS} ${Boost_FILESYSTEM_LIBRARIES} ${Boost_SYSTEM_LIBRARIES})
