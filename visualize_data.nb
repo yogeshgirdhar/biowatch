@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       145,          7]
-NotebookDataLength[      5726,        159]
-NotebookOptionsPosition[      5212,        139]
-NotebookOutlinePosition[      5552,        154]
-CellTagsIndexPosition[      5509,        151]
+NotebookDataLength[      8730,        235]
+NotebookOptionsPosition[      8127,        213]
+NotebookOutlinePosition[      8465,        228]
+CellTagsIndexPosition[      8422,        225]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -49,7 +49,10 @@ Cell[BoxData[{
   ";"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{"bg", "=", 
-   RowBox[{"Import", "[", "bgFilename", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{"ColorConvert", "[", " ", 
+    RowBox[{
+     RowBox[{"Import", "[", "bgFilename", "]"}], ",", "\"\<Grayscale\>\""}], 
+    "]"}]}], ";"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{"pos", " ", "=", " ", 
    RowBox[{"data", "[", 
@@ -60,11 +63,79 @@ Cell[BoxData[{
   RowBox[{"(*", " ", 
    RowBox[{
    "2", "nd", " ", "and", " ", "third", " ", "columns", " ", "are", " ", 
-    "the", " ", "position"}], "*)"}]}]}], "Input",
+    "the", " ", "position"}], "*)"}], "\[IndentingNewLine]", 
+  RowBox[{"time", "=", " ", 
+   RowBox[{"data", "[", 
+    RowBox[{"[", 
+     RowBox[{"All", ",", "1"}], "]"}], "]"}]}], ";"}]}], "Input",
  CellChangeTimes->{{3.4786339971678963`*^9, 3.478634004809433*^9}, {
   3.478634047403926*^9, 3.478634091682213*^9}, {3.479999579899847*^9, 
   3.479999581475164*^9}, {3.479999645215384*^9, 3.4799996455516787`*^9}, {
-  3.480004324870799*^9, 3.480004325109254*^9}}],
+  3.480004324870799*^9, 3.480004325109254*^9}, {3.480802452800097*^9, 
+  3.480802469893368*^9}, {3.480805214354912*^9, 3.480805231761768*^9}, {
+  3.480805308870775*^9, 3.480805327206337*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(*", 
+   RowBox[{
+   "funciton", " ", "to", " ", "plot", " ", "path", " ", "in", " ", "color"}],
+    "*)"}], 
+  RowBox[{
+   RowBox[{"pathPlot", "[", "pos_", "]"}], ":=", 
+   RowBox[{"With", "[", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{
+       RowBox[{"pos3d", "=", 
+        RowBox[{"Transpose", "[", 
+         RowBox[{
+          RowBox[{"Transpose", "[", "pos", "]"}], "~", "Join", "~", 
+          RowBox[{"{", 
+           RowBox[{"Rescale", "[", "time", "]"}], "}"}]}], "]"}]}], ",", 
+       RowBox[{"linesFrom", "=", 
+        RowBox[{"pos3d", "[", 
+         RowBox[{"[", 
+          RowBox[{"1", ";;", 
+           RowBox[{"-", "2"}]}], "]"}], "]"}]}], ",", 
+       RowBox[{"linesTo", "=", 
+        RowBox[{"pos3d", "[", 
+         RowBox[{"[", 
+          RowBox[{"2", ";;"}], "]"}], "]"}]}], ",", 
+       RowBox[{"lines", "=", 
+        RowBox[{"Transpose", "[", 
+         RowBox[{
+          RowBox[{"{", "linesFrom", "}"}], "~", "Join", "~", 
+          RowBox[{"{", "linesTo", "}"}]}], "]"}]}]}], "}"}], ",", 
+     RowBox[{"Graphics", "[", 
+      RowBox[{"Map", "[", 
+       RowBox[{
+        RowBox[{
+         RowBox[{"{", 
+          RowBox[{
+           RowBox[{"Thickness", "[", "0.005", "]"}], ",", 
+           RowBox[{"Opacity", "[", "0.5", "]"}], ",", 
+           RowBox[{"Hue", "[", 
+            FractionBox[
+             RowBox[{"#", "[", 
+              RowBox[{"[", 
+               RowBox[{"1", ",", "3"}], "]"}], "]"}], "1.5"], "]"}], ",", 
+           RowBox[{"Line", "[", 
+            RowBox[{"#", "[", 
+             RowBox[{"[", 
+              RowBox[{"All", ",", 
+               RowBox[{"{", 
+                RowBox[{"1", ",", "2"}], "}"}]}], "]"}], "]"}], "]"}]}], 
+          "}"}], "&"}], ",", "lines"}], "]"}], "]"}]}], "]"}]}]}]], "Input",
+ CellChangeTimes->{{3.480803640160237*^9, 3.480803647494199*^9}, {
+  3.480803686625585*^9, 3.480803694237361*^9}, {3.480803821624134*^9, 
+  3.480803823091309*^9}, {3.480804282958404*^9, 3.480804433834803*^9}, {
+  3.480804470403233*^9, 3.480804473695427*^9}, {3.480804646271328*^9, 
+  3.480804655086951*^9}, {3.480804814612055*^9, 3.480804984844449*^9}, {
+  3.480805033310778*^9, 3.480805040760851*^9}, {3.480805082433085*^9, 
+  3.480805130212355*^9}, {3.480805520350757*^9, 3.480805524868245*^9}, {
+  3.480805597614318*^9, 3.480805598162172*^9}, {3.480805643356168*^9, 
+  3.480805719522236*^9}}],
 
 Cell[BoxData[
  RowBox[{"Show", "[", 
@@ -73,14 +144,14 @@ Cell[BoxData[
     RowBox[{"Raster", "[", 
      RowBox[{"ImageData", "[", 
       RowBox[{"ImageReflect", "[", "bg", "]"}], "]"}], "]"}], "]"}], ",", 
-   RowBox[{"ListLinePlot", "[", "pos", "]"}]}], "]"}]], "Input",
+   RowBox[{"pathPlot", "[", "pos", "]"}]}], "]"}]], "Input",
  CellChangeTimes->{{3.478634150380966*^9, 3.478634154557136*^9}, {
   3.47863528797878*^9, 3.478635328873233*^9}, {3.47864683960574*^9, 
   3.478646872681666*^9}, {3.4786472107207336`*^9, 3.478647218277063*^9}, {
   3.478696281466858*^9, 3.478696310037468*^9}, {3.478696449117234*^9, 
   3.4786964519731417`*^9}, {3.4787211793369207`*^9, 3.478721192356347*^9}, {
   3.478721568963957*^9, 3.47872157837858*^9}, {3.478721667852696*^9, 
-  3.4787216719119177`*^9}}],
+  3.4787216719119177`*^9}, {3.480805169614946*^9, 3.48080517638499*^9}}],
 
 Cell[BoxData[
  RowBox[{
@@ -135,11 +206,14 @@ Cell[BoxData[
  RowBox[{"totalDistanceTraveled", " ", "=", " ", 
   RowBox[{"Total", "[", "speed", "]"}]}]], "Input",
  CellChangeTimes->{{3.4786463422953663`*^9, 3.47864635025992*^9}, {
-  3.4800039490671186`*^9, 3.480003956498872*^9}}]
+  3.4800039490671186`*^9, 3.480003956498872*^9}}],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{3.480804694854169*^9, 3.480804811504146*^9}]
 },
-WindowSize->{884, 741},
-WindowMargins->{{132, Automatic}, {Automatic, 0}},
-FrontEndVersion->"7.0 for Mac OS X x86 (32-bit) (November 10, 2008)",
+WindowSize->{884, 724},
+WindowMargins->{{129, Automatic}, {Automatic, 25}},
+FrontEndVersion->"7.0 for Linux x86 (32-bit) (November 10, 2008)",
 StyleDefinitions->"Default.nb"
 ]
 (* End of Notebook Content *)
@@ -153,14 +227,16 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[545, 20, 185, 3, 27, "Input"],
-Cell[733, 25, 638, 16, 58, "Input"],
-Cell[1374, 43, 903, 23, 73, "Input"],
-Cell[2280, 68, 733, 14, 27, "Input"],
-Cell[3016, 84, 538, 10, 27, "Input"],
-Cell[3557, 96, 183, 3, 27, "Input"],
-Cell[3743, 101, 1229, 30, 43, "Input"],
-Cell[4975, 133, 233, 4, 27, "Input"]
+Cell[545, 20, 185, 3, 32, "Input"],
+Cell[733, 25, 638, 16, 77, "Input"],
+Cell[1374, 43, 1289, 32, 99, "Input"],
+Cell[2666, 77, 2392, 60, 167, "Input"],
+Cell[5061, 139, 774, 14, 32, "Input"],
+Cell[5838, 155, 538, 10, 32, "Input"],
+Cell[6379, 167, 183, 3, 32, "Input"],
+Cell[6565, 172, 1229, 30, 55, "Input"],
+Cell[7797, 204, 233, 4, 32, "Input"],
+Cell[8033, 210, 90, 1, 32, InheritFromParent]
 }
 ]
 *)
