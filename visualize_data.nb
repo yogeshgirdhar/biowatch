@@ -10,36 +10,32 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       145,          7]
-NotebookDataLength[      8730,        235]
-NotebookOptionsPosition[      8127,        213]
-NotebookOutlinePosition[      8465,        228]
-CellTagsIndexPosition[      8422,        225]
+NotebookDataLength[     10507,        288]
+NotebookOptionsPosition[      9909,        266]
+NotebookOutlinePosition[     10247,        281]
+CellTagsIndexPosition[     10204,        278]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
 Notebook[{
-Cell[BoxData[
- RowBox[{"vidFilename", "=", 
-  RowBox[{"SystemDialogInput", "[", "\"\<FileOpen\>\"", "]"}]}]], "Input",
- CellChangeTimes->{{3.4800041004748898`*^9, 3.48000410342467*^9}}],
-
 Cell[BoxData[{
+ RowBox[{"dataFilename", "=", 
+  RowBox[{
+  "SystemDialogInput", "[", "\"\<FileOpen\>\"", 
+   "]"}]}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"bgFilename", "=", 
+   RowBox[{"StringReplace", "[", 
+    RowBox[{"dataFilename", ",", 
+     RowBox[{"\"\<data.txt\>\"", "\[Rule]", " ", "\"\<bg.jpg\>\""}]}], 
+    "]"}]}], ";"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{"dirName", "=", 
-   RowBox[{"DirectoryName", "[", "vidFilename", "]"}]}], 
-  ";"}], "\[IndentingNewLine]", 
- RowBox[{
-  RowBox[{"dataFilename", "=", 
-   RowBox[{"dirName", "<>", 
-    RowBox[{"FileBaseName", "[", "vidFilename", "]"}], "<>", 
-    "\"\<_data.txt\>\""}]}], ";"}], "\[IndentingNewLine]", 
- RowBox[{
-  RowBox[{"bgFilename", " ", "=", " ", 
-   RowBox[{"dirName", "<>", 
-    RowBox[{"FileBaseName", "[", "vidFilename", "]"}], "<>", 
-    "\"\<_bg.jpg\>\""}]}], ";"}]}], "Input",
- CellChangeTimes->{{3.479999429752759*^9, 3.479999475725865*^9}, {
-  3.479999526233197*^9, 3.4799995721965837`*^9}}],
+   RowBox[{"DirectoryName", "[", "dataFilename", "]"}]}], 
+  ";"}], "\[IndentingNewLine]"}], "Input",
+ CellChangeTimes->{{3.4800041004748898`*^9, 3.48000410342467*^9}, {
+  3.480970698947402*^9, 3.480970700526463*^9}, {3.480970822940189*^9, 
+  3.480970840792304*^9}}],
 
 Cell[BoxData[{
  RowBox[{
@@ -54,16 +50,18 @@ Cell[BoxData[{
      RowBox[{"Import", "[", "bgFilename", "]"}], ",", "\"\<Grayscale\>\""}], 
     "]"}]}], ";"}], "\[IndentingNewLine]", 
  RowBox[{
-  RowBox[{"pos", " ", "=", " ", 
-   RowBox[{"data", "[", 
-    RowBox[{"[", 
-     RowBox[{"All", ",", 
-      RowBox[{"{", 
-       RowBox[{"2", ",", "3"}], "}"}]}], "]"}], "]"}]}], ";", " ", 
+  RowBox[{
+   RowBox[{"pos", " ", "=", " ", 
+    RowBox[{"data", "[", 
+     RowBox[{"[", 
+      RowBox[{"All", ",", 
+       RowBox[{"{", 
+        RowBox[{"2", ",", "3"}], "}"}]}], "]"}], "]"}]}], ";"}], " ", 
   RowBox[{"(*", " ", 
    RowBox[{
    "2", "nd", " ", "and", " ", "third", " ", "columns", " ", "are", " ", 
-    "the", " ", "position"}], "*)"}], "\[IndentingNewLine]", 
+    "the", " ", "position"}], "*)"}]}], "\[IndentingNewLine]", 
+ RowBox[{
   RowBox[{"time", "=", " ", 
    RowBox[{"data", "[", 
     RowBox[{"[", 
@@ -81,52 +79,56 @@ Cell[BoxData[
    RowBox[{
    "funciton", " ", "to", " ", "plot", " ", "path", " ", "in", " ", "color"}],
     "*)"}], 
-  RowBox[{
-   RowBox[{"pathPlot", "[", "pos_", "]"}], ":=", 
-   RowBox[{"With", "[", 
-    RowBox[{
-     RowBox[{"{", 
-      RowBox[{
-       RowBox[{"pos3d", "=", 
-        RowBox[{"Transpose", "[", 
-         RowBox[{
-          RowBox[{"Transpose", "[", "pos", "]"}], "~", "Join", "~", 
-          RowBox[{"{", 
-           RowBox[{"Rescale", "[", "time", "]"}], "}"}]}], "]"}]}], ",", 
-       RowBox[{"linesFrom", "=", 
-        RowBox[{"pos3d", "[", 
-         RowBox[{"[", 
-          RowBox[{"1", ";;", 
-           RowBox[{"-", "2"}]}], "]"}], "]"}]}], ",", 
-       RowBox[{"linesTo", "=", 
-        RowBox[{"pos3d", "[", 
-         RowBox[{"[", 
-          RowBox[{"2", ";;"}], "]"}], "]"}]}], ",", 
-       RowBox[{"lines", "=", 
-        RowBox[{"Transpose", "[", 
-         RowBox[{
-          RowBox[{"{", "linesFrom", "}"}], "~", "Join", "~", 
-          RowBox[{"{", "linesTo", "}"}]}], "]"}]}]}], "}"}], ",", 
-     RowBox[{"Graphics", "[", 
-      RowBox[{"Map", "[", 
+  RowBox[{"(*", 
+   RowBox[{
+    RowBox[{"pathPlot", "[", "pos_", "]"}], ":=", 
+    RowBox[{"With", "[", 
+     RowBox[{
+      RowBox[{"{", 
        RowBox[{
-        RowBox[{
-         RowBox[{"{", 
+        RowBox[{"pos3d", "=", 
+         RowBox[{"Transpose", "[", 
           RowBox[{
-           RowBox[{"Thickness", "[", "0.005", "]"}], ",", 
-           RowBox[{"Opacity", "[", "0.5", "]"}], ",", 
-           RowBox[{"Hue", "[", 
-            FractionBox[
-             RowBox[{"#", "[", 
-              RowBox[{"[", 
-               RowBox[{"1", ",", "3"}], "]"}], "]"}], "1.5"], "]"}], ",", 
-           RowBox[{"Line", "[", 
-            RowBox[{"#", "[", 
-             RowBox[{"[", 
-              RowBox[{"All", ",", 
-               RowBox[{"{", 
-                RowBox[{"1", ",", "2"}], "}"}]}], "]"}], "]"}], "]"}]}], 
-          "}"}], "&"}], ",", "lines"}], "]"}], "]"}]}], "]"}]}]}]], "Input",
+           RowBox[{"Transpose", "[", "pos", "]"}], "~", "Join", "~", 
+           RowBox[{"{", 
+            RowBox[{"Rescale", "[", "time", "]"}], "}"}]}], "]"}]}], ",", 
+        RowBox[{"linesFrom", "=", 
+         RowBox[{"pos3d", "[", 
+          RowBox[{"[", 
+           RowBox[{"1", ";;", 
+            RowBox[{"-", "2"}]}], "]"}], "]"}]}], ",", 
+        RowBox[{"linesTo", "=", 
+         RowBox[{"pos3d", "[", 
+          RowBox[{"[", 
+           RowBox[{"2", ";;"}], "]"}], "]"}]}], ",", 
+        RowBox[{"lines", "=", 
+         RowBox[{"Transpose", "[", 
+          RowBox[{
+           RowBox[{"{", "linesFrom", "}"}], "~", "Join", "~", 
+           RowBox[{"{", "linesTo", "}"}]}], "]"}]}]}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{"pos3d", ",", 
+        RowBox[{"Graphics", "[", 
+         RowBox[{"Map", "[", 
+          RowBox[{
+           RowBox[{
+            RowBox[{"{", 
+             RowBox[{
+              RowBox[{"Thickness", "[", "0.005", "]"}], ",", 
+              RowBox[{"Opacity", "[", "0.5", "]"}], ",", 
+              RowBox[{"Hue", "[", 
+               FractionBox[
+                RowBox[{"#", "[", 
+                 RowBox[{"[", 
+                  RowBox[{"1", ",", "3"}], "]"}], "]"}], "1.5"], "]"}], ",", 
+              RowBox[{"Line", "[", 
+               RowBox[{"#", "[", 
+                RowBox[{"[", 
+                 RowBox[{"All", ",", 
+                  RowBox[{"{", 
+                   RowBox[{"1", ",", "2"}], "}"}]}], "]"}], "]"}], "]"}]}], 
+             "}"}], "&"}], ",", "lines"}], "]"}], "]"}]}], "}"}]}], "]"}]}], 
+   "*)"}]}]], "Input",
  CellChangeTimes->{{3.480803640160237*^9, 3.480803647494199*^9}, {
   3.480803686625585*^9, 3.480803694237361*^9}, {3.480803821624134*^9, 
   3.480803823091309*^9}, {3.480804282958404*^9, 3.480804433834803*^9}, {
@@ -135,7 +137,57 @@ Cell[BoxData[
   3.480805033310778*^9, 3.480805040760851*^9}, {3.480805082433085*^9, 
   3.480805130212355*^9}, {3.480805520350757*^9, 3.480805524868245*^9}, {
   3.480805597614318*^9, 3.480805598162172*^9}, {3.480805643356168*^9, 
-  3.480805719522236*^9}}],
+  3.480805719522236*^9}, {3.480969993860759*^9, 3.480970024774303*^9}, {
+  3.480970375985837*^9, 3.480970380467826*^9}}],
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"pos3d", "=", 
+   RowBox[{"Transpose", "[", 
+    RowBox[{
+     RowBox[{"Transpose", "[", "pos", "]"}], "~", "Join", "~", 
+     RowBox[{"{", 
+      RowBox[{"Rescale", "[", "time", "]"}], "}"}]}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"linesFrom", "=", 
+   RowBox[{"pos3d", "[", 
+    RowBox[{"[", 
+     RowBox[{"1", ";;", 
+      RowBox[{"-", "2"}]}], "]"}], "]"}]}], ";", 
+  RowBox[{"linesTo", "=", 
+   RowBox[{"pos3d", "[", 
+    RowBox[{"[", 
+     RowBox[{"2", ";;"}], "]"}], "]"}]}], ";", 
+  RowBox[{"lines", "=", 
+   RowBox[{"Transpose", "[", 
+    RowBox[{
+     RowBox[{"{", "linesFrom", "}"}], "~", "Join", "~", 
+     RowBox[{"{", "linesTo", "}"}]}], "]"}]}], ";", 
+  RowBox[{"pathG", "=", 
+   RowBox[{"Graphics", "[", 
+    RowBox[{"Map", "[", 
+     RowBox[{
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{
+         RowBox[{"Thickness", "[", "0.005", "]"}], ",", 
+         RowBox[{"Opacity", "[", "0.5", "]"}], ",", 
+         RowBox[{"Hue", "[", 
+          FractionBox[
+           RowBox[{"#", "[", 
+            RowBox[{"[", 
+             RowBox[{"1", ",", "3"}], "]"}], "]"}], "1.5"], "]"}], ",", 
+         RowBox[{"Line", "[", 
+          RowBox[{"#", "[", 
+           RowBox[{"[", 
+            RowBox[{"All", ",", 
+             RowBox[{"{", 
+              RowBox[{"1", ",", "2"}], "}"}]}], "]"}], "]"}], "]"}]}], "}"}], 
+       "&"}], ",", "lines"}], "]"}], "]"}]}], ";"}]}], "Input",
+ CellChangeTimes->{{3.480970163694875*^9, 3.480970200309627*^9}, {
+  3.480970231254186*^9, 3.480970232086852*^9}, {3.480970340451616*^9, 
+  3.480970346380753*^9}}],
 
 Cell[BoxData[
  RowBox[{"Show", "[", 
@@ -144,14 +196,15 @@ Cell[BoxData[
     RowBox[{"Raster", "[", 
      RowBox[{"ImageData", "[", 
       RowBox[{"ImageReflect", "[", "bg", "]"}], "]"}], "]"}], "]"}], ",", 
-   RowBox[{"pathPlot", "[", "pos", "]"}]}], "]"}]], "Input",
+   "pathG"}], "]"}]], "Input",
  CellChangeTimes->{{3.478634150380966*^9, 3.478634154557136*^9}, {
   3.47863528797878*^9, 3.478635328873233*^9}, {3.47864683960574*^9, 
   3.478646872681666*^9}, {3.4786472107207336`*^9, 3.478647218277063*^9}, {
   3.478696281466858*^9, 3.478696310037468*^9}, {3.478696449117234*^9, 
   3.4786964519731417`*^9}, {3.4787211793369207`*^9, 3.478721192356347*^9}, {
   3.478721568963957*^9, 3.47872157837858*^9}, {3.478721667852696*^9, 
-  3.4787216719119177`*^9}, {3.480805169614946*^9, 3.48080517638499*^9}}],
+  3.4787216719119177`*^9}, {3.480805169614946*^9, 3.48080517638499*^9}, {
+  3.480970352145301*^9, 3.480970354400317*^9}}],
 
 Cell[BoxData[
  RowBox[{
@@ -212,7 +265,7 @@ Cell[BoxData[""], "Input",
  CellChangeTimes->{3.480804694854169*^9, 3.480804811504146*^9}]
 },
 WindowSize->{884, 724},
-WindowMargins->{{129, Automatic}, {Automatic, 25}},
+WindowMargins->{{Automatic, 150}, {Automatic, 25}},
 FrontEndVersion->"7.0 for Linux x86 (32-bit) (November 10, 2008)",
 StyleDefinitions->"Default.nb"
 ]
@@ -227,16 +280,16 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[545, 20, 185, 3, 32, "Input"],
-Cell[733, 25, 638, 16, 77, "Input"],
-Cell[1374, 43, 1289, 32, 99, "Input"],
-Cell[2666, 77, 2392, 60, 167, "Input"],
-Cell[5061, 139, 774, 14, 32, "Input"],
-Cell[5838, 155, 538, 10, 32, "Input"],
-Cell[6379, 167, 183, 3, 32, "Input"],
-Cell[6565, 172, 1229, 30, 55, "Input"],
-Cell[7797, 204, 233, 4, 32, "Input"],
-Cell[8033, 210, 90, 1, 32, InheritFromParent]
+Cell[545, 20, 669, 17, 99, "Input"],
+Cell[1217, 39, 1320, 34, 99, "Input"],
+Cell[2540, 75, 2661, 65, 146, "Input"],
+Cell[5204, 142, 1617, 47, 140, "Input"],
+Cell[6824, 191, 793, 15, 32, "Input"],
+Cell[7620, 208, 538, 10, 32, "Input"],
+Cell[8161, 220, 183, 3, 32, "Input"],
+Cell[8347, 225, 1229, 30, 55, "Input"],
+Cell[9579, 257, 233, 4, 32, "Input"],
+Cell[9815, 263, 90, 1, 32, "Input"]
 }
 ]
 *)
