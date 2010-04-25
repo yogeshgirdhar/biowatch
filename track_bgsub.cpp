@@ -2,6 +2,7 @@
 #include <highgui.h>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 #include <boost/filesystem.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -31,6 +32,8 @@ int process_program_options(int argc, char*argv[], po::variables_map& args){
     ("maxlen", po::value<int>()->default_value(15),"Maximum length of the object (post scaling)")
     //("fps",po::value<double>()->default_value(-1),"fps for input")
     ("senstivity", po::value<double>()->default_value(4),"2 = low, 4 = mid (default), 10=high")
+    ("skip", po::value<int>()->default_value(0),"skip the initial frames")
+    ("mask", po::value<string>(),"mask file")
     ;
 
   po::positional_options_description pos_desc;
@@ -48,6 +51,30 @@ int process_program_options(int argc, char*argv[], po::variables_map& args){
   return 0;
 }
 
+struct cmp_dist{
+  cmp_dist(const cv::Point2f& p):m_p(p)
+  {}
+  cv::Point2f m_p;
+  bool operator()(const cv::Point2f& p1, const cv::Point2f& p2)const{
+    return cv::norm(p1-m_p) < cv::norm(p2-m_p);    
+  }
+};
+void clean_points(std::vector<cv::Point2f>& points, cv::Point2f loc, int maxlen){
+  if(points.size() <2)
+    return;
+  std::sort(points.begin(), points.end(),cmp_dist(loc));
+  int end=0;
+  for(int i=1;i<points.size();i++){
+    if(cv::norm(points[i]-points[i-1]) > maxlen){
+      end=i;
+      break;
+    }
+  }
+  if(end!=0){
+    points.erase(points.begin()+end, points.end());
+  }
+}
+
 int main(int argc, char* argv[]){
   po::variables_map ARGS;
   process_program_options(argc,argv, ARGS);
@@ -63,7 +90,7 @@ int main(int argc, char* argv[]){
   cerr<<"Opening "<<filename;
 
   //cv::VideoCapture video(filename);
-  H::ImageSource video(filename, ARGS["subsample"].as<int>(), ARGS["scale"].as<double>(),false);
+  H::ImageSource video(filename, ARGS["subsample"].as<int>(), ARGS["scale"].as<double>(), ARGS["skip"].as<int>(),false);
 
   cerr<<(video.isOpened()?": OK":": FAIL")<<endl;
 
@@ -75,7 +102,15 @@ int main(int argc, char* argv[]){
   cv::Mat_<float> observation(image_tmp.size(),0.0);
   cv::Mat_<float> observationT(image_tmp.size(),0.0);
   cv::Mat_<float> dilated_observation(image_tmp.size(),0.0);
+  cv::Mat mask,mask_fp;
 
+  if(ARGS.count("mask")){
+    cerr<<"Using mask: "<<ARGS["mask"].as<string>()<<endl;
+    mask = cv::imread(ARGS["mask"].as<string>(),0);
+    assert(!mask.empty());
+    mask.convertTo(mask_fp, CV_32F, 1.0/256.0);
+    mask=mask_fp;
+  }
 
   video.grab();
   video.retrieve(image_tmp);
@@ -94,8 +129,15 @@ int main(int argc, char* argv[]){
   cv::RotatedRect rect;
   cv::RotatedRect last_locked_rect;
 
-  std::ofstream out(dirname+"/"+basename+"_data.txt");
+
+  cv::namedWindow(basename, CV_WINDOW_AUTOSIZE);	
+  cv::namedWindow("bg", CV_WINDOW_AUTOSIZE);	
+  cv::namedWindow("ant", CV_WINDOW_AUTOSIZE);	
+
+
+  std::ofstream out((dirname+"/"+basename+"_data.txt").c_str());
   bool locked=false;
+  bool first=true;
   while(video.grab()){
     count++;
     video.retrieve(image_tmp);
@@ -113,7 +155,7 @@ int main(int argc, char* argv[]){
     }
 
     cv::absdiff(image_fp, accum_image, observation);
-
+    observation = observation.mul(mask);
 
     double min, max;
     cv::Point minLoc, maxLoc;
@@ -125,14 +167,15 @@ int main(int argc, char* argv[]){
     for(int r=0;r<observation.rows;r++){
       for(int c=0;c<observation.cols;c++){
 	if(observationT(r,c)==1.0){
-	  points.push_back(cv::Point_<int>(c,r));
+	  points.push_back(cv::Point2f(c,r));
 	  //state = state + 
 	}
       }
     }
+    //if(!first)clean_points(points,last_locked_rect.center, max_ant_len);
     //cerr<<"points="<<points.size()<<endl;
     if(points.size()>=1){
-      rect = cv::minAreaRect(points);
+      rect = cv::minAreaRect(cv::Mat(points));
       rect.angle+=90;
 
       //if(rect.size.width*rect.size.height < MAX_ANT_AREA)
@@ -144,6 +187,7 @@ int main(int argc, char* argv[]){
       if(locked){
 	cv::ellipse(image_tmp, rect, cv::Scalar(0,255,0));
 	last_locked_rect=rect;
+	first=false;
       }
       else{
 	cv::ellipse(image_tmp, last_locked_rect, cv::Scalar(255,0,0));
@@ -166,9 +210,10 @@ int main(int argc, char* argv[]){
 	<<(int)locked<<endl;
 
 
-    cv::imshow(filename, image_tmp);	
-    cv::imshow("bg", accum_image);	
-    cv::imshow("ant", observationT);	
+    cv::imshow(basename, image_tmp);	
+
+    //cv::imshow("bg", accum_image);	
+    //cv::imshow("ant", observationT);	
 
 
     int c = cvWaitKey(10);
@@ -184,6 +229,7 @@ int main(int argc, char* argv[]){
     }
     std::swap(image_tmp,image_rgb_last);
     //    imgswap(image,image0);
+
   }
 
   return 0;

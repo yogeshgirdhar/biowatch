@@ -16,7 +16,7 @@ include_directories("${CMAKE_SOURCE_DIR}")
 FIND_PACKAGE(OpenCV REQUIRED )
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -march=i686 -msse -msse2")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -march=i686 -msse -msse2")
 
 
 

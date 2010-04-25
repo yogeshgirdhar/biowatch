@@ -12,13 +12,14 @@
 namespace entropy{
   class ImageSource{
   public:
-    ImageSource(const std::string& filename, int subsample=1, double scale=1.0, bool gray=true);
-    ImageSource(int camera_id, int subsample=1, double scale=1.0, bool gray=true);
+    ImageSource(const std::string& filename, int subsample=1, double scale=1.0, int skip=0, bool gray=true);
+    ImageSource(int camera_id, int subsample=1, double scale=1.0, int skip=0, bool gray=true);
     bool grab();
     bool retrieve(cv::Mat&);
     bool isOpened();
     int frame_number();
   protected:
+    int m_skip;
     cv::VideoCapture m_video_capture;
     double m_scale;
     double m_subsample;
