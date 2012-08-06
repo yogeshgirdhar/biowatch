@@ -12,7 +12,9 @@
 namespace entropy{
   class ImageSource{
   public:
-    ImageSource(const std::string& filename, int subsample=1, double scale=1.0, int skip=0, bool gray=true);
+    //begin_time = sart time in seconds
+    //end_time = end time in seconds, -1 for no end time.
+    ImageSource(const std::string& filename, int subsample=1, double scale=1.0, int skip=0, bool gray=true, double begin_time=0.0, double end_time=-1.0);
     ImageSource(int camera_id, int subsample=1, double scale=1.0, int skip=0, bool gray=true);
     bool grab();
     bool retrieve(cv::Mat&);
@@ -28,6 +30,7 @@ namespace entropy{
     int m_curr_framenum;
     bool m_has_new_frame;
     bool m_gray;
+    double m_begin_time, m_end_time;
   };
 }
 

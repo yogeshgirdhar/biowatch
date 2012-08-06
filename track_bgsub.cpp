@@ -34,6 +34,8 @@ int process_program_options(int argc, char*argv[], po::variables_map& args){
     ("senstivity", po::value<double>()->default_value(4),"2 = low, 4 = mid (default), 10=high")
     ("skip", po::value<int>()->default_value(0),"skip the initial frames")
     ("mask", po::value<string>(),"mask file")
+    ("begin", po::value<double>()->default_value(0),"begin time in seconds")
+    ("end", po::value<double>()->default_value(-1.0),"end time in seconds")
     ;
 
   po::positional_options_description pos_desc;
@@ -82,15 +84,18 @@ int main(int argc, char* argv[]){
   double senstivity =ARGS["senstivity"].as<double>();
   int max_ant_len = ARGS["maxlen"].as<int>();
   string filename=ARGS["video"].as<string>();
+  double begin_time = ARGS["begin"].as<double>();
+  double end_time = ARGS["end"].as<double>();
   fs::path pathname(argv[1]);
   std::string dirname  = pathname.parent_path().string();
-  if(dirname=="") dirname=".";
+  //if(dirname=="") 
+    dirname=".";
   std::string basename = boost::filesystem::basename (pathname);
 
   cerr<<"Opening "<<filename;
 
   //cv::VideoCapture video(filename);
-  H::ImageSource video(filename, ARGS["subsample"].as<int>(), ARGS["scale"].as<double>(), ARGS["skip"].as<int>(),false);
+  H::ImageSource video(filename, ARGS["subsample"].as<int>(), ARGS["scale"].as<double>(), ARGS["skip"].as<int>(),false, begin_time, end_time);
 
   cerr<<(video.isOpened()?": OK":": FAIL")<<endl;
 
@@ -155,7 +160,8 @@ int main(int argc, char* argv[]){
     }
 
     cv::absdiff(image_fp, accum_image, observation);
-    observation = observation.mul(mask);
+    if(!mask.empty())
+      observation = observation.mul(mask);
 
     double min, max;
     cv::Point minLoc, maxLoc;
@@ -176,7 +182,7 @@ int main(int argc, char* argv[]){
     //cerr<<"points="<<points.size()<<endl;
     if(points.size()>=1){
       rect = cv::minAreaRect(cv::Mat(points));
-      rect.angle+=90;
+      //      rect.angle+=90;
 
       //if(rect.size.width*rect.size.height < MAX_ANT_AREA)
       if(rect.size.width < max_ant_len && rect.size.height < max_ant_len)
@@ -213,7 +219,7 @@ int main(int argc, char* argv[]){
     cv::imshow(basename, image_tmp);	
 
     //cv::imshow("bg", accum_image);	
-    //cv::imshow("ant", observationT);	
+    cv::imshow("ant", observationT);	
 
 
     int c = cvWaitKey(10);
