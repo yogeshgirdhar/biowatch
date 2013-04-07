@@ -20,6 +20,7 @@ namespace entropy{
     bool retrieve(cv::Mat&);
     bool isOpened();
     int frame_number();
+    cv::VideoCapture& source(){return m_video_capture;}
   protected:
     int m_skip;
     cv::VideoCapture m_video_capture;

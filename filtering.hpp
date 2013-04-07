@@ -54,11 +54,12 @@ void measurement_importance(vector<RotatedRect>& particles,
 		float cos_theta = cos(particles[i].angle/180.0*M_PI);
 		float sin_theta = sin(particles[i].angle/180.0*M_PI);
 
-		for(int x=0; x< obj.size.width; ++x){
-			for(int y=0; y<obj.size.height; ++y){
+		for(int x=-obj.size.width/2; x< obj.size.width/2; ++x){
+			for(int y=-obj.size.height/2; y<obj.size.height/2; ++y){
 				int t_x = x*cos_theta - y*sin_theta + particles[i].center.x;
 				int t_y = x*sin_theta + y*cos_theta + particles[i].center.y;
-				weights[i]+= observation(t_y,t_x);
+				if(t_y < observation.rows && t_y >= 0 && t_x < observation.cols && t_x >= 0 )
+					weights[i]+= observation(t_y,t_x);
 			}
 		}
 		importance[i]*=weights[i];
