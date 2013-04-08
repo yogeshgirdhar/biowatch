@@ -8,6 +8,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include "track.hpp"
 #include "filtering.hpp"
+#include "colors.hpp"
 using namespace std;
 namespace fs = boost::filesystem;
 namespace H = entropy;
@@ -25,7 +26,8 @@ int process_program_options(int argc, char*argv[], po::variables_map& args){
     //("camera", po::value<int>(),"Camera: device id")
     ("scale", po::value<double>()->default_value(1),"scaling")
     ("subsample", po::value<int>()->default_value(1),"Temporal subsampling rate for input video.")
-    ("maxlen", po::value<int>()->default_value(20),"Maximum length of the object (post scaling)")
+    ("owidth", po::value<int>()->default_value(20),"Maximum width of the object (post scaling)")
+    ("oheight", po::value<int>()->default_value(4),"Maximum height of the object (post scaling)")
     //("fps",po::value<double>()->default_value(-1),"fps for input")
     ("senstivity", po::value<double>()->default_value(4),"2.0 = low, 4 = mid (default), 10=high")
     ("skip", po::value<int>()->default_value(0),"skip the initial frames")
@@ -54,40 +56,99 @@ int process_program_options(int argc, char*argv[], po::variables_map& args){
   return 0;
 }
 
+void print_help(){
+  cerr<<"Keyboard control:"<<endl
+      <<setw(10)<<"[space]: "<<"toggle pausing"<<endl
+      <<setw(10)<<"[delete]: "<<"delete selected object"<<endl
+      <<setw(10)<<"[<]: "<<"rotate selected object counter-clockwise"<<endl
+      <<setw(10)<<"[>]: "<<"rotate selected object clockwise"<<endl
+      <<setw(10)<<"[z]: "<<"show measurement"<<endl
+      <<setw(10)<<"[p]: "<<"show particles"<<endl
+      <<setw(10)<<"[o]: "<<"write output"<<endl
+      <<setw(10)<<"[escape]: "<<"write output and quit"<<endl;
+
+  cerr<<endl
+      <<"Mouse control:"<<endl
+      <<"\t- double click or right click to add a new object"<<endl
+      <<"\t- While paused, drag and object to manually update position"<<endl;
+
+  cerr<<endl;
+}
 //current position estimate of the object
 
 
-vector<RotatedRect> state_at_time;
+vector<vector<RotatedRect> > state_at_time;
+vector<vector<bool> > is_tracked;
 int max_time;
 int current_time;
+Size2f object_size;  //size of the tracked object
 enum state_type {uninitialized, paused, track_object};
 state_type state = uninitialized;
 
-bool show_particles=true, show_measurement=true;
+bool show_particles=false, show_measurement=false;
+
+int find_object_at_coords(int x, int y){
+  int i;
+  Point2i p(x,y);
+  for(i=0; i< state_at_time.size(); ++i){
+    if(state_at_time[i][current_time].boundingRect().contains(p))
+      return i;
+  }
+  return -1;
+}
+
+int add_tracked_object(int x, int y){
+  int oi=state_at_time.size();
+  cerr<<"Adding new object: "<<oi<<endl;
+  state_at_time.push_back(vector<RotatedRect>(max_time+1,RotatedRect(Point2f(0,0),object_size,0)));
+  is_tracked.push_back(vector<bool>(max_time+1,false));
+
+  state_at_time[oi][current_time].center=Point2f(x,y);
+  return state_at_time.size()-1;  
+}
+
+int remove_tracked_object(int oi){
+  assert(oi < state_at_time.size());
+  state_at_time.erase(state_at_time.begin()+oi);
+  cerr<<"Removed object: "<<oi<<endl;
+  return state_at_time.size()-1;  
+}
 
 ///this function is used to select the object to track
-bool selectObject = false;
+int selected_object = -1;
+bool dragging=false;
 static void on_mouse( int event, int x, int y, int, void* )
 {
-    RotatedRect &object = state_at_time[current_time];
-    if( selectObject )
-    {
-      object.angle =  atan2(y - object.center.y, x - object.center.x) /M_PI * 180.0;
-    }
+//    RotatedRect &object = state_at_time[current_time];
+    //if( selected_object )
+    //{
+     // object.angle =  atan2(y - object.center.y, x - object.center.x) /M_PI * 180.0;
+    //}
 
     switch( event )
     {
-    case CV_EVENT_LBUTTONDOWN:
-      selectObject = true;
-      cerr<<"Selected object at point: "<<x<<" "<<y<<endl;
-      break;
-    case CV_EVENT_LBUTTONUP:
-        selectObject = false;
+      //add a new object to track
+      case CV_EVENT_LBUTTONDBLCLK:
+      case CV_EVENT_RBUTTONDOWN:
+        selected_object = add_tracked_object(x,y);
+        break;
+
+      case CV_EVENT_LBUTTONDOWN:
+        selected_object = find_object_at_coords(x,y);
+        cerr<<"Selected object at point: "<<x<<" "<<y<<" : "<<selected_object<<endl;
+        dragging=true;
+        break;
+      case CV_EVENT_LBUTTONUP:
+        //selected_object = -1;
         //state=track_object;
+        dragging=false;
+        break;
+      case CV_EVENT_MOUSEMOVE:
+        if(dragging && selected_object>=0)
+          state_at_time[selected_object][current_time].center = Point2f(x,y);
         break;
     }
-    if(selectObject)
-      object.center = Point2f(x,y);
+   
     if(state==uninitialized) state = track_object;
 
 }
@@ -101,15 +162,17 @@ void on_time_change(int pos,void* data){
 void write_output(string filename){
   //initialize the output stream
   std::ofstream out(filename.c_str());
-  for(int i=0;i<=max_time; ++i){
-    RotatedRect &o = state_at_time[i];
-    out<<i<<" "
-       <<o.center.x<<" "
-       <<o.center.y<<" "
-       <<o.size.width<<" "
-       <<o.size.height<<" "
-       <<o.angle<<" "
-       <<"1"<<endl;
+  for(int oi=0; oi< state_at_time.size(); ++oi){
+    for(int i=0;i<=max_time; ++i){
+      RotatedRect &o = state_at_time[oi][i];
+      out<<oi<<" "<<i<<" "
+         <<o.center.x<<" "
+         <<o.center.y<<" "
+         <<o.size.width<<" "
+         <<o.size.height<<" "
+         <<o.angle<<" "
+         <<static_cast<int>(is_tracked[oi][i])<<endl;
+    }
   }
 }
 
@@ -119,7 +182,6 @@ int main(int argc, char* argv[]){
   process_program_options(argc,argv, ARGS);
   //int MAX_ANT_AREA=60;
   double senstivity =ARGS["senstivity"].as<double>();
-  int max_ant_len = ARGS["maxlen"].as<int>();
   string filename=ARGS["video"].as<string>();
   double begin_time = ARGS["begin"].as<double>();
   double end_time = ARGS["end"].as<double>();
@@ -144,10 +206,10 @@ int main(int argc, char* argv[]){
   }
 
   //initialize the size of the object to track
-  Size2f object_size(max_ant_len, max_ant_len/4.0);
+  object_size = Size2f(ARGS["owidth"].as<int>(), ARGS["oheight"].as<int>());
 
   //resize the state vector to hold posision for each time step
-  state_at_time.resize(frame_count,RotatedRect(Point2f(0,0),object_size,0));
+//  state_at_time.resize(frame_count,RotatedRect(Point2f(0,0),object_size,0));
 
 
   cv::Mat image, image_tmp;
@@ -190,6 +252,7 @@ int main(int argc, char* argv[]){
   cv::Mat image_status;
   Mat_<float> observation;
 
+  print_help();
   while(true){
     if(state != paused){
       if(current_time >= max_time){
@@ -210,7 +273,6 @@ int main(int argc, char* argv[]){
       cv::cvtColor(image_tmp, image, CV_BGR2GRAY);
       image.convertTo(image_fp, CV_32F, 1.0/256.0);
       
-      image_status = image_tmp.clone();
          
       cv::Point minLoc, maxLoc;     double minv, maxv;
       cv::minMaxLoc(image_fp,&minv, &maxv, &minLoc, &maxLoc);
@@ -220,43 +282,51 @@ int main(int argc, char* argv[]){
       if(show_measurement)
         cv::imshow("z", observation);	
     }
-
+    image_status = image_tmp.clone();
 
 
     if(state == track_object){
       //Mat_<float> z2 = posterior_dist(observation,object);
       //cv::imshow("z2", z2); 
 
-      //generate particles
-      vector<RotatedRect> particles;
-      vector<float> importance;
-      generate_particles(state_at_time[current_time-1],
-                        ARGS["particles"].as<int>(),
-                        ARGS["sigma_pos"].as<double>()*state_at_time[current_time].size.width, 
-                        ARGS["sigma_pos"].as<double>()*state_at_time[current_time].size.height, 
-                        ARGS["sigma_theta"].as<double>(), 
-                        gen, particles, importance);
-      measurement_importance(particles, state_at_time[current_time-1], observation, importance);
-      float imp_max = *max_element(importance.begin(), importance.end());
-      float imp_min = *min_element(importance.begin(), importance.end());
+      //generate particles for each object and select the max likelihood particle
+      for(size_t oi=0; oi< state_at_time.size() ; ++oi){
+        vector<RotatedRect> particles;
+        vector<float> importance;
+        generate_particles(state_at_time[oi][current_time-1],
+                          ARGS["particles"].as<int>(),
+                          ARGS["sigma_pos"].as<double>()*state_at_time[oi][current_time].size.width, 
+                          ARGS["sigma_pos"].as<double>()*state_at_time[oi][current_time].size.height, 
+                          ARGS["sigma_theta"].as<double>(), 
+                          gen, particles, importance);
+        measurement_importance(particles, state_at_time[oi][current_time-1], observation, importance);
+        float imp_max = *max_element(importance.begin(), importance.end());
+        float imp_min = *min_element(importance.begin(), importance.end());
 
-      if(show_particles){
-        for(size_t i=0;i<particles.size(); ++i){
-          cv::ellipse(image_status, particles[i], cv::Scalar(255*importance[i]/imp_max,0,0));
+        if(show_particles){
+          for(size_t i=0;i<particles.size(); ++i){
+            cv::ellipse(image_status, particles[i], cv::Scalar(255*importance[i]/imp_max,0,0));
+          }
         }
+        //maximum likelikiid estimate
+        state_at_time[oi][current_time]=particles[max_element(importance.begin(), importance.end())  - importance.begin()];
+        is_tracked[oi][current_time]=true;
       }
-      //maximum likelikiid estimate
-      state_at_time[current_time]=particles[max_element(importance.begin(), importance.end())  - importance.begin()];
     }
 
-    cv::ellipse(image_status, state_at_time[current_time], cv::Scalar(0,255,0));
+    //draw the current position of each tracked object
+    int colorid=0;
+    for(auto &object: state_at_time){
+      cv::ellipse(image_status, object[current_time], get_color(colorid++));
+    }
     cv::imshow(basename, image_status); 
 
     last_time = current_time;
 
     //handle keyboard input
     int c = cvWaitKey(5);
-    switch(c){
+    //if (c != -1) cerr<<"pressed_key: "<<c<<endl;
+    switch(c){      
       case 27:
         cerr<<"Writing output to:"<<ARGS["out"].as<string>()<<endl;
         write_output(ARGS["out"].as<string>());
@@ -284,6 +354,16 @@ int main(int argc, char* argv[]){
       case 'p':
         show_particles = !show_particles; 
         break;
+      case 'z':
+        show_measurement = !show_measurement; 
+        break;
+
+      case 8:
+        if(state == paused){
+          if(selected_object>=0)
+            remove_tracked_object(selected_object);
+        }
+        break;
 
       case 's': //step one frame if paused
         if(state==paused){
@@ -294,16 +374,18 @@ int main(int argc, char* argv[]){
       case ',':
       case '<':
         if(state == paused){
-  	     state_at_time[current_time].angle += 7.5;
+          if(selected_object>=0)
+  	       state_at_time[selected_object][current_time].angle += 7.5;
         }
         break;
 
       case '.':
       case '>':
         if(state == paused){
-         state_at_time[current_time].angle -= 7.5;
+          if(selected_object>=0)
+            state_at_time[selected_object][current_time].angle -= 7.5;
         }
-        break;
+        break;      
     }
   }
 
