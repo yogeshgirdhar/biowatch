@@ -1,7 +1,7 @@
 #ifndef TRACK_HPP_239384
 #define TRACK_HPP_239384
-#include <cv.h>
-#include <highgui.h>
+#include <opencv2/opencv.hpp>
+
 #include <string>
 
 

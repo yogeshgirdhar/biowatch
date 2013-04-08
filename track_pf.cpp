@@ -1,6 +1,6 @@
-#include <cv.h>
-#include <highgui.h>
+#include <opencv2/opencv.hpp>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <algorithm>
 #include <boost/filesystem.hpp>

@@ -1,4 +1,4 @@
-#include <cv.h>
+#include <opencv2/opencv.hpp>
 #include <vector>
 #include <random>
 //#include "multivariate_gaussian.hpp"

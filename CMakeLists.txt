@@ -14,8 +14,8 @@ include_directories("${CMAKE_SOURCE_DIR}")
 #include_directories("include")
 #include_directories("lib")
 
-FIND_PACKAGE(OpenCV REQUIRED )
-
+find_package(OpenCV REQUIRED )
+include_directories(${OpenCV_INCLUDE_DIR})
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -march=i686 -msse -msse2")
 
@@ -24,7 +24,28 @@ FIND_PACKAGE(OpenCV REQUIRED )
 #else()
 #	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -pthread")
 #endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -D_GLIBCXX_USE_NANOSLEEP")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -D_GLIBCXX_USE_NANOSLEEP")
+#check the gcc version, if its greater than 4.7, then use std=c++11, else c++0x
+if (CMAKE_COMPILER_IS_GNUCC)
+    execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
+                    OUTPUT_VARIABLE GCC_VERSION)
+    string(REGEX MATCHALL "[0-9]+" GCC_VERSION_COMPONENTS ${GCC_VERSION})
+    list(GET GCC_VERSION_COMPONENTS 0 GCC_MAJOR)
+    list(GET GCC_VERSION_COMPONENTS 1 GCC_MINOR)
+
+    message(STATUS ${GCC_MAJOR})
+    message(STATUS ${GCC_MINOR})
+  if(GCC_VERSION VERSION_GREATER 4.6)	
+    message("GCC version 4.7 or above detected")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -D_GLIBCXX_USE_NANOSLEEP")
+  else()
+    message("GCC version 4.6 or below detected")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -pthread")	
+  endif()
+endif()
+
+
+
 
 #add_library(track image_source.cpp)
 #add_executable(lkdemo lkdemo.c)

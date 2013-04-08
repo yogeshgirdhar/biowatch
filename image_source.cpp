@@ -1,6 +1,4 @@
 #include "track.hpp"
-#include <cv.h>
-#include <highgui.h>
 #include <iostream>
 using namespace std;
 namespace entropy{
