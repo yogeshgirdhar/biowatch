@@ -79,6 +79,7 @@ void print_help(){
 
 vector<vector<RotatedRect> > state_at_time;
 vector<vector<bool> > is_tracked;
+vector<Mat> appearance_model; //color histogram for each object being tracked
 int max_time;
 int current_time;
 Size2f object_size;  //size of the tracked object
@@ -97,11 +98,89 @@ int find_object_at_coords(int x, int y){
   return -1;
 }
 
+template<typename T>
+void extract_roi(cv::Mat_<T>& image, cv::Mat_<T>& roi, const RotatedRect& obj){
+  float cos_theta = cos(obj.angle/180.0*M_PI);
+  float sin_theta = sin(obj.angle/180.0*M_PI);
+  roi.create(static_cast<int>(obj.size.height), static_cast<int>(obj.size.width));
+  float width2 = roi.cols/2.0;
+  float height2 = roi.rows/2.0;
+  //for each pixel covered by the object, do bincounts
+  for(int i=0; i< roi.rows; ++i){
+    for(int j=0; j< roi.cols ; ++j){
+      float x = j - width2; float y = i - height2;
+      int t_x = round(x*cos_theta - y*sin_theta + obj.center.x);
+      int t_y = round(x*sin_theta + y*cos_theta + obj.center.y);
+      if(t_y < image.rows && t_y >= 0 && t_x < image.cols && t_x >= 0 )
+	roi(i,j) = image(t_y,t_x);
+      else
+	roi(i,j) = T();
+    }
+  }
+}
+
+//update the appearance model of the given object by looking at its corrent position
+void update_appearance_model(int oi, cv::Mat& observation, RotatedRect& obj){
+
+  cv::Mat_<Vec3b> tracked_roi, z_=observation;
+  extract_roi(z_, tracked_roi, obj);
+  int hbins = 30, sbins = 16, vbins=16;
+  int histSize[] = {hbins, sbins, vbins};
+  // hue varies from 0 to 179, see cvtColor
+  float hranges[] = { 0, 180 };
+  // saturation varies from 0 (black-gray-white) to
+  // 255 (pure spectrum color)
+  float sranges[] = { 0, 256 };
+  float vranges[] = { 0, 256 };
+  const float* ranges[] = { hranges, sranges, vranges };
+  MatND hist;
+  // we compute the histogram from the 0-th and 1-st channels
+  int channels[] = {0, 1,2};
+
+  calcHist( &hsv, 1, channels, Mat(), // do not use mask
+	    hist, 3, histSize, ranges,
+	    true, // the histogram is uniform
+	    false );
+
+  calcHist(tracked_roi, 1, 0, maskroi, hist, 1, &hsize, &phranges);
+
+
+  float cos_theta = cos(obj.angle/180.0*M_PI);
+  float sin_theta = sin(obj.angle/180.0*M_PI);
+
+  //for each pixel covered by the object, do bincounts
+  for(int x=-obj.size.width/2; x< obj.size.width/2; ++x){
+    for(int y=-obj.size.height/2; y<obj.size.height/2; ++y){
+      int t_x = x*cos_theta - y*sin_theta + obj.center.x;
+      int t_y = x*sin_theta + y*cos_theta + obj.center.y;
+      if(t_y < observation.rows && t_y >= 0 && t_x < observation.cols && t_x >= 0 )
+	weights[i]+= observation(t_y,t_x);
+    }
+  }
+}
+
+cv::Mat_<float> make_observation(cv::Mat& image, double senstivity, int object_id){
+  cv::Mat_<float> image_fp, observation;
+  //cv::Mat image;
+  //  cv::cvtColor(image_tmp, image, CV_BGR2GRAY);
+  image.convertTo(image_fp, CV_32F, 1.0/256.0);
+  
+  cv::Point minLoc, maxLoc;     double minv, maxv;
+  cv::minMaxLoc(image_fp,&minv, &maxv, &minLoc, &maxLoc);
+  double T = minv+(maxv-minv)/senstivity;
+  cv::threshold(image_fp,observation, T, 1.0, CV_THRESH_TRUNC);
+  observation =  1.0 - (observation - minv)/(T-minv);
+  return observation;
+}
+
+
 int add_tracked_object(int x, int y){
   int oi=state_at_time.size();
   cerr<<"Adding new object: "<<oi<<endl;
+
   state_at_time.push_back(vector<RotatedRect>(max_time+1,RotatedRect(Point2f(0,0),object_size,0)));
   is_tracked.push_back(vector<bool>(max_time+1,false));
+  appearance_model.push_back(Mat());
 
   state_at_time[oi][current_time].center=Point2f(x,y);
   return state_at_time.size()-1;  
@@ -109,7 +188,11 @@ int add_tracked_object(int x, int y){
 
 int remove_tracked_object(int oi){
   assert(oi < state_at_time.size());
+
   state_at_time.erase(state_at_time.begin()+oi);
+  is_tracked.erase(is_tracked.begin()+oi);
+  appearance_model.erase(appearance_model.begin()+oi);
+
   cerr<<"Removed object: "<<oi<<endl;
   return state_at_time.size()-1;  
 }
@@ -270,25 +353,22 @@ int main(int argc, char* argv[]){
       if(!video.grab())
         break;
       video.retrieve(image_tmp);
-      cv::cvtColor(image_tmp, image, CV_BGR2GRAY);
-      image.convertTo(image_fp, CV_32F, 1.0/256.0);
       
-         
-      cv::Point minLoc, maxLoc;     double minv, maxv;
-      cv::minMaxLoc(image_fp,&minv, &maxv, &minLoc, &maxLoc);
-      double T = minv+(maxv-minv)/senstivity;
-      cv::threshold(image_fp,observation, T, 1.0, CV_THRESH_TRUNC);
-      observation =  1.0 - (observation - minv)/(T-minv);
-      if(show_measurement)
-        cv::imshow("z", observation);	
     }
     image_status = image_tmp.clone();
 
 
     if(state == track_object){
-      //Mat_<float> z2 = posterior_dist(observation,object);
-      //cv::imshow("z2", z2); 
 
+      //split the HSV color channels
+      cv::Mat image_hsv;
+      cv::Mat_<uchar> image_hue(image_tmp.size()) , image_saturation(image_tmp.size()), image_value(image_tmp.size());
+      cv::cvtColor(image_tmp,image_hsv,CV_BGR2HSV);
+      cv::Mat splitchannels[]={image_hue,image_saturation,image_value};
+      cv::split(image_hsv,splitchannels);
+      //imshow("img_hue",image_hue);
+      //imshow("img_sat",image_saturation);
+      //imshow("img_value",image_value);
       //generate particles for each object and select the max likelihood particle
       for(size_t oi=0; oi< state_at_time.size() ; ++oi){
         vector<RotatedRect> particles;
@@ -299,6 +379,9 @@ int main(int argc, char* argv[]){
                           ARGS["sigma_pos"].as<double>()*state_at_time[oi][current_time].size.height, 
                           ARGS["sigma_theta"].as<double>(), 
                           gen, particles, importance);
+	observation = make_observation(image_value,senstivity,oi);
+	if(show_measurement)  cv::imshow("z", observation);
+
         measurement_importance(particles, state_at_time[oi][current_time-1], observation, importance);
         float imp_max = *max_element(importance.begin(), importance.end());
         float imp_min = *min_element(importance.begin(), importance.end());
@@ -311,6 +394,12 @@ int main(int argc, char* argv[]){
         //maximum likelikiid estimate
         state_at_time[oi][current_time]=particles[max_element(importance.begin(), importance.end())  - importance.begin()];
         is_tracked[oi][current_time]=true;
+
+	//update the visual model
+	Mat_<Vec3b> tracked_roi, img_=image_hsv;
+	extract_roi(img_, tracked_roi, state_at_time[oi][current_time]);
+	//	calcHist(tracked_roi, 1, 0, maskroi, hist, 1, &hsize, &phranges);
+	imshow("tracked_roi",tracked_roi);
       }
     }
 
