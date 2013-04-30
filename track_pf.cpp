@@ -38,6 +38,8 @@ int process_program_options(int argc, char*argv[], po::variables_map& args){
     ("particles", po::value<int>()->default_value(100), "Number of particles used. Higher number will result in smoother tracking.")
     ("sigma_pos", po::value<double>()->default_value(1.0), "more jumpy the object is, higher this number should be. It is used after multiplying it with max_len")
     ("sigma_theta", po::value<double>()->default_value(30.0), "more irratic the object turning is, higher this number should be.")
+    ("update_appearance", po::value<bool>()->default_value(true), "continusouly update the appearance model of the tracked objects.")
+    ("observation", po::value<string>()->default_value("black"), "what kind of observation to track: black, HV")
 
     ;
 
@@ -79,14 +81,26 @@ void print_help(){
 
 vector<vector<RotatedRect> > state_at_time;
 vector<vector<bool> > is_tracked;
-vector<Mat> appearance_model; //color histogram for each object being tracked
+vector<MatND> appearance_model; //color histogram for each object being tracked
 int max_time;
 int current_time;
 Size2f object_size;  //size of the tracked object
 enum state_type {uninitialized, paused, track_object};
 state_type state = uninitialized;
-
+cv::Mat_<Vec3b> current_image_hsv;
 bool show_particles=false, show_measurement=false;
+// hue varies from 0 to 179, see cvtColor
+float hranges[] = { 0, 180 };
+// saturation varies from 0 (black-gray-white) to
+// 255 (pure spectrum color)
+float sranges[] = { 0, 256 };
+float vranges[] = { 0, 256 };
+//const float* ranges[] = { hranges, sranges, vranges };
+const float* ranges[] = {hranges,sranges, vranges };
+// we compute the histogram from the 0-th and 1-st channels
+int channels[] = {0,2};
+int num_channels = 2;
+
 
 int find_object_at_coords(int x, int y){
   int i;
@@ -120,32 +134,25 @@ void extract_roi(cv::Mat_<T>& image, cv::Mat_<T>& roi, const RotatedRect& obj){
 }
 
 //update the appearance model of the given object by looking at its corrent position
-void update_appearance_model(int oi, cv::Mat& observation, RotatedRect& obj){
+MatND get_appearance_model(cv::Mat_<Vec3b>& hsv_image, RotatedRect& obj){
 
-  cv::Mat_<Vec3b> tracked_roi, z_=observation;
-  extract_roi(z_, tracked_roi, obj);
-  int hbins = 30, sbins = 16, vbins=16;
+  cv::Mat_<Vec3b> roi;
+  extract_roi(hsv_image, roi, obj);
+  int hbins = 30, sbins = 32, vbins=32;
   int histSize[] = {hbins, sbins, vbins};
-  // hue varies from 0 to 179, see cvtColor
-  float hranges[] = { 0, 180 };
-  // saturation varies from 0 (black-gray-white) to
-  // 255 (pure spectrum color)
-  float sranges[] = { 0, 256 };
-  float vranges[] = { 0, 256 };
-  const float* ranges[] = { hranges, sranges, vranges };
   MatND hist;
-  // we compute the histogram from the 0-th and 1-st channels
-  int channels[] = {0, 1,2};
 
-  calcHist( &hsv, 1, channels, Mat(), // do not use mask
-	    hist, 3, histSize, ranges,
+
+  calcHist( &roi, 1, channels, Mat(), // do not use mask
+	    hist, num_channels, histSize, ranges,
 	    true, // the histogram is uniform
 	    false );
 
-  calcHist(tracked_roi, 1, 0, maskroi, hist, 1, &hsize, &phranges);
+  return hist;
+  //calcHist(tracked_roi, 1, 0, 0, hist, 1, &hsize, &phranges);
 
 
-  float cos_theta = cos(obj.angle/180.0*M_PI);
+  /*float cos_theta = cos(obj.angle/180.0*M_PI);
   float sin_theta = sin(obj.angle/180.0*M_PI);
 
   //for each pixel covered by the object, do bincounts
@@ -156,7 +163,7 @@ void update_appearance_model(int oi, cv::Mat& observation, RotatedRect& obj){
       if(t_y < observation.rows && t_y >= 0 && t_x < observation.cols && t_x >= 0 )
 	weights[i]+= observation(t_y,t_x);
     }
-  }
+    }*/
 }
 
 cv::Mat_<float> make_observation(cv::Mat& image, double senstivity, int object_id){
@@ -173,16 +180,43 @@ cv::Mat_<float> make_observation(cv::Mat& image, double senstivity, int object_i
   return observation;
 }
 
+cv::Mat_<float> make_observation_hsv(cv::Mat& image_hsv, double senstivity, int object_id){
+  cv::Mat_<float> image_fp, observation;
+  //cv::Mat image;
+  //  cv::cvtColor(image_tmp, image, CV_BGR2GRAY);
+  //image.convertTo(image_fp, CV_32F, 1.0/256.0);
+  cv::Mat response;
+  calcBackProject(&image_hsv, 1, channels, appearance_model[object_id], response, ranges);
+  response.convertTo(image_fp, CV_32F, 1.0/256.0);
 
-int add_tracked_object(int x, int y){
+  cv::Point minLoc, maxLoc;     double minv, maxv;
+  cv::minMaxLoc(image_fp,&minv, &maxv, &minLoc, &maxLoc);
+  double T = minv+(maxv-minv)/senstivity;
+  cv::threshold(image_fp,observation, T, 1.0, CV_THRESH_TRUNC);
+  observation =  (observation - minv)/(T-minv);
+
+  //cv::imshow("hsvresponse", observation);
+  /*  cv::Point minLoc, maxLoc;     double minv, maxv;
+  cv::minMaxLoc(image_fp,&minv, &maxv, &minLoc, &maxLoc);
+  double T = minv+(maxv-minv)/senstivity;
+  cv::threshold(image_fp,observation, T, 1.0, CV_THRESH_TRUNC);
+  observation =  1.0 - (observation - minv)/(T-minv);*/
+  return observation;
+}
+
+//add a new object at x,y,angle to be tracked
+int add_tracked_object(float x, float y, Size2f o_size, float o_angle=0){
   int oi=state_at_time.size();
   cerr<<"Adding new object: "<<oi<<endl;
 
-  state_at_time.push_back(vector<RotatedRect>(max_time+1,RotatedRect(Point2f(0,0),object_size,0)));
+  state_at_time.push_back(vector<RotatedRect>(max_time+1,RotatedRect(Point2f(x,y),o_size,o_angle)));
   is_tracked.push_back(vector<bool>(max_time+1,false));
-  appearance_model.push_back(Mat());
+  is_tracked[oi][current_time]=true;
+  //  state_at_time[oi][current_time].center=Point2f(x,y);
 
-  state_at_time[oi][current_time].center=Point2f(x,y);
+  MatND appearance = get_appearance_model(current_image_hsv, state_at_time[oi][current_time]);
+  appearance_model.push_back(appearance);
+
   return state_at_time.size()-1;  
 }
 
@@ -213,7 +247,7 @@ static void on_mouse( int event, int x, int y, int, void* )
       //add a new object to track
       case CV_EVENT_LBUTTONDBLCLK:
       case CV_EVENT_RBUTTONDOWN:
-        selected_object = add_tracked_object(x,y);
+        selected_object = add_tracked_object(x,y, object_size, 0);
         break;
 
       case CV_EVENT_LBUTTONDOWN:
@@ -227,8 +261,10 @@ static void on_mouse( int event, int x, int y, int, void* )
         dragging=false;
         break;
       case CV_EVENT_MOUSEMOVE:
-        if(dragging && selected_object>=0)
+        if(dragging && selected_object>=0){
           state_at_time[selected_object][current_time].center = Point2f(x,y);
+	  appearance_model[selected_object]=get_appearance_model(current_image_hsv,  state_at_time[selected_object][current_time]);
+	}
         break;
     }
    
@@ -364,6 +400,7 @@ int main(int argc, char* argv[]){
       cv::Mat image_hsv;
       cv::Mat_<uchar> image_hue(image_tmp.size()) , image_saturation(image_tmp.size()), image_value(image_tmp.size());
       cv::cvtColor(image_tmp,image_hsv,CV_BGR2HSV);
+      current_image_hsv = image_hsv;
       cv::Mat splitchannels[]={image_hue,image_saturation,image_value};
       cv::split(image_hsv,splitchannels);
       //imshow("img_hue",image_hue);
@@ -379,7 +416,11 @@ int main(int argc, char* argv[]){
                           ARGS["sigma_pos"].as<double>()*state_at_time[oi][current_time].size.height, 
                           ARGS["sigma_theta"].as<double>(), 
                           gen, particles, importance);
-	observation = make_observation(image_value,senstivity,oi);
+	
+	if(ARGS["observation"].as<string>()=="black")
+	  observation = make_observation(image_value,senstivity,oi);
+	else
+	  observation = make_observation_hsv(image_hsv, senstivity, oi);
 	if(show_measurement)  cv::imshow("z", observation);
 
         measurement_importance(particles, state_at_time[oi][current_time-1], observation, importance);
@@ -397,7 +438,11 @@ int main(int argc, char* argv[]){
 
 	//update the visual model
 	Mat_<Vec3b> tracked_roi, img_=image_hsv;
-	extract_roi(img_, tracked_roi, state_at_time[oi][current_time]);
+	extract_roi(img_, tracked_roi, state_at_time[oi][current_time]); 
+	
+	if(ARGS["update_appearance"].as<bool>())
+	  appearance_model[selected_object]=get_appearance_model(current_image_hsv, state_at_time[selected_object][current_time]);
+
 	//	calcHist(tracked_roi, 1, 0, maskroi, hist, 1, &hsize, &phranges);
 	imshow("tracked_roi",tracked_roi);
       }
@@ -413,7 +458,8 @@ int main(int argc, char* argv[]){
     last_time = current_time;
 
     //handle keyboard input
-    int c = cvWaitKey(5);
+    int c = cvWaitKey(5) & 255;
+    bool update_appearance=false;
     //if (c != -1) cerr<<"pressed_key: "<<c<<endl;
     switch(c){      
       case 27:
@@ -434,9 +480,11 @@ int main(int argc, char* argv[]){
       case ' ':
         if(state == paused){
           state = track_object;
+	  cerr<<"Unpaused"<<endl;
         }
         else{
           state = paused;
+	  cerr<<"Paused"<<endl;
         }
         break;
 
@@ -454,7 +502,7 @@ int main(int argc, char* argv[]){
         }
         break;
 
-      case 's': //step one frame if paused
+      case 'n': //step one frame if paused
         if(state==paused){
           current_time = min(current_time+1, max_time);
         }
@@ -465,6 +513,7 @@ int main(int argc, char* argv[]){
         if(state == paused){
           if(selected_object>=0)
   	       state_at_time[selected_object][current_time].angle += 7.5;
+	  update_appearance=true;
         }
         break;
 
@@ -473,8 +522,59 @@ int main(int argc, char* argv[]){
         if(state == paused){
           if(selected_object>=0)
             state_at_time[selected_object][current_time].angle -= 7.5;
+	  update_appearance=true;
         }
-        break;      
+        break;
+
+    case 'w': //up
+        if(state == paused){
+          if(selected_object>=0)
+            state_at_time[selected_object][current_time].center.y -= 1;
+	  update_appearance=true;
+        }
+        break;
+    case 's': //down
+        if(state == paused){
+          if(selected_object>=0)
+            state_at_time[selected_object][current_time].center.y += 1;
+	  update_appearance=true;
+        }
+        break;
+    case 'd': //right
+        if(state == paused){
+          if(selected_object>=0)
+            state_at_time[selected_object][current_time].center.x += 1;
+	  update_appearance=true;
+        }
+        break;
+    case 'a': //left
+        if(state == paused){
+          if(selected_object>=0)
+            state_at_time[selected_object][current_time].center.x -= 1;
+	  update_appearance=true;
+        }
+        break;
+    case 'r'://increase size
+      if(selected_object>=0){
+	state_at_time[selected_object][current_time].size.width *= 1.1;
+	state_at_time[selected_object][current_time].size.height *= 1.1;
+      }
+      break;
+    case 'f'://decrease size
+      if(selected_object>=0){
+	state_at_time[selected_object][current_time].size.width /= 1.1;
+	state_at_time[selected_object][current_time].size.height /= 1.1;
+      }
+      break;
+
+
+    default:
+      if (c != -1 && c!=255) cerr<<"pressed_key: "<<c<<endl;
+    }
+    if(update_appearance && ARGS["observation"].as<string>()!="black"){
+      appearance_model[selected_object]=get_appearance_model(current_image_hsv, state_at_time[selected_object][current_time]);
+      observation = make_observation_hsv(current_image_hsv, senstivity, selected_object);
+      if(show_measurement)  cv::imshow("z", observation);
     }
   }
 
