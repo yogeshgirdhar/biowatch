@@ -24,7 +24,7 @@ include_directories(${OpenCV_INCLUDE_DIR})
 #else()
 #	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -pthread")
 #endif()
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -D_GLIBCXX_USE_NANOSLEEP")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -D_GLIBCXX_USE_NANOSLEEP")
 #check the gcc version, if its greater than 4.7, then use std=c++11, else c++0x
 if (CMAKE_COMPILER_IS_GNUCC)
     execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
