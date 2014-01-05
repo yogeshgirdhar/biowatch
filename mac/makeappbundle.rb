@@ -10,8 +10,8 @@ macosdir = "#{appdir}/Contents/MacOs";
 frameworksdir = "#{appdir}/Contents/Frameworks";
 pluginsdir = "#{appdir}/Contents/PlugIns";
 
-`rm -rf BioWatch.app`;
-`cp -r BioWatch.barebones.app BioWatch.app`
+#`rm -rf BioWatch.app`;
+#`cp -r BioWatch.barebones.app BioWatch.app`
 #Dir.mkdir(appdir)
 #Dir.mkdir(contentsdir)
 #Dir.mkdir(macosdir)

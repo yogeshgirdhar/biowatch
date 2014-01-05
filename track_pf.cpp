@@ -16,6 +16,28 @@ namespace po = boost::program_options;
 using namespace cv;
 
 
+void print_runtime_help(){
+  cerr<<"Keyboard control:"<<endl
+      <<setw(10)<<"[space]: "<<"toggle pausing"<<endl
+      <<setw(10)<<"[delete]: "<<"delete selected object"<<endl
+      <<setw(10)<<"[<],[>]: "<<"rotate selected object"<<endl
+      <<setw(10)<<"[w],[s]: "<<"change selected tracked target position UP/DOWN"<<endl
+      <<setw(10)<<"[a],[d]: "<<"change selected tracked target position LEFT/RIGHT"<<endl
+      <<setw(10)<<"[r],[f]: "<<"change selected tracked target size"<<endl
+      <<setw(10)<<"[z]: "<<"show measurement"<<endl
+      <<setw(10)<<"[p]: "<<"show particles"<<endl
+      <<setw(10)<<"[o]: "<<"write output"<<endl
+      <<setw(10)<<"[escape]: "<<"write output and quit"<<endl;
+
+  cerr<<endl
+      <<"Mouse control:"<<endl
+      <<"\t- double click or right click to add a new object"<<endl
+      <<"\t- While paused, drag and object to manually update position"<<endl;
+
+  cerr<<endl;
+}
+
+
 ///process program options..
 ///output is variables_map args
 int process_program_options(int argc, char*argv[], po::variables_map& args){
@@ -53,29 +75,13 @@ int process_program_options(int argc, char*argv[], po::variables_map& args){
 
   if (args.count("help")) {
     cout << desc << "\n";
+    cout << "While running you can use the following keys to control the application: "<<endl;
+    print_runtime_help();
     exit(0);
   }
   return 0;
 }
 
-void print_help(){
-  cerr<<"Keyboard control:"<<endl
-      <<setw(10)<<"[space]: "<<"toggle pausing"<<endl
-      <<setw(10)<<"[delete]: "<<"delete selected object"<<endl
-      <<setw(10)<<"[<]: "<<"rotate selected object counter-clockwise"<<endl
-      <<setw(10)<<"[>]: "<<"rotate selected object clockwise"<<endl
-      <<setw(10)<<"[z]: "<<"show measurement"<<endl
-      <<setw(10)<<"[p]: "<<"show particles"<<endl
-      <<setw(10)<<"[o]: "<<"write output"<<endl
-      <<setw(10)<<"[escape]: "<<"write output and quit"<<endl;
-
-  cerr<<endl
-      <<"Mouse control:"<<endl
-      <<"\t- double click or right click to add a new object"<<endl
-      <<"\t- While paused, drag and object to manually update position"<<endl;
-
-  cerr<<endl;
-}
 //current position estimate of the object
 
 
@@ -126,9 +132,9 @@ void extract_roi(cv::Mat_<T>& image, cv::Mat_<T>& roi, const RotatedRect& obj){
       int t_x = round(x*cos_theta - y*sin_theta + obj.center.x);
       int t_y = round(x*sin_theta + y*cos_theta + obj.center.y);
       if(t_y < image.rows && t_y >= 0 && t_x < image.cols && t_x >= 0 )
-	roi(i,j) = image(t_y,t_x);
+        roi(i,j) = image(t_y,t_x);
       else
-	roi(i,j) = T();
+        roi(i,j) = T();
     }
   }
 }
@@ -144,9 +150,9 @@ MatND get_appearance_model(cv::Mat_<Vec3b>& hsv_image, RotatedRect& obj){
 
 
   calcHist( &roi, 1, channels, Mat(), // do not use mask
-	    hist, num_channels, histSize, ranges,
-	    true, // the histogram is uniform
-	    false );
+            hist, num_channels, histSize, ranges,
+            true, // the histogram is uniform
+            false );
 
   return hist;
   //calcHist(tracked_roi, 1, 0, 0, hist, 1, &hsize, &phranges);
@@ -161,7 +167,7 @@ MatND get_appearance_model(cv::Mat_<Vec3b>& hsv_image, RotatedRect& obj){
       int t_x = x*cos_theta - y*sin_theta + obj.center.x;
       int t_y = x*sin_theta + y*cos_theta + obj.center.y;
       if(t_y < observation.rows && t_y >= 0 && t_x < observation.cols && t_x >= 0 )
-	weights[i]+= observation(t_y,t_x);
+        weights[i]+= observation(t_y,t_x);
     }
     }*/
 }
@@ -263,12 +269,12 @@ static void on_mouse( int event, int x, int y, int, void* )
       case CV_EVENT_MOUSEMOVE:
         if(dragging && selected_object>=0){
           state_at_time[selected_object][current_time].center = Point2f(x,y);
-	  appearance_model[selected_object]=get_appearance_model(current_image_hsv,  state_at_time[selected_object][current_time]);
-	}
+          appearance_model[selected_object]=get_appearance_model(current_image_hsv,  state_at_time[selected_object][current_time]);
+        }
         break;
     }
    
-    if(state==uninitialized) state = track_object;
+    if(state==uninitialized) state = paused;
 
 }
 
@@ -360,7 +366,7 @@ int main(int argc, char* argv[]){
   
   
   //initialize mouse callback for selecting objects
-  cv::namedWindow(basename, CV_WINDOW_AUTOSIZE);	
+  cv::namedWindow(basename, CV_WINDOW_AUTOSIZE);        
   setMouseCallback(basename, on_mouse, 0 );
   createTrackbar("time", basename, &current_time, max_time, on_time_change); 
 
@@ -371,7 +377,7 @@ int main(int argc, char* argv[]){
   cv::Mat image_status;
   Mat_<float> observation;
 
-  print_help();
+  print_runtime_help();
   while(true){
     if(state != paused){
       if(current_time >= max_time){
@@ -392,7 +398,7 @@ int main(int argc, char* argv[]){
       
     }
     image_status = image_tmp.clone();
-
+    if(state==uninitialized) state=paused;
 
     if(state == track_object){
 
@@ -416,12 +422,12 @@ int main(int argc, char* argv[]){
                           ARGS["sigma_pos"].as<double>()*state_at_time[oi][current_time].size.height, 
                           ARGS["sigma_theta"].as<double>(), 
                           gen, particles, importance);
-	
-	if(ARGS["observation"].as<string>()=="black")
-	  observation = make_observation(image_value,senstivity,oi);
-	else
-	  observation = make_observation_hsv(image_hsv, senstivity, oi);
-	if(show_measurement)  cv::imshow("z", observation);
+        
+        if(ARGS["observation"].as<string>()=="black")
+          observation = make_observation(image_value,senstivity,oi);
+        else
+          observation = make_observation_hsv(image_hsv, senstivity, oi);
+        if(show_measurement)  cv::imshow("z", observation);
 
         measurement_importance(particles, state_at_time[oi][current_time-1], observation, importance);
         float imp_max = *max_element(importance.begin(), importance.end());
@@ -436,16 +442,20 @@ int main(int argc, char* argv[]){
         state_at_time[oi][current_time]=particles[max_element(importance.begin(), importance.end())  - importance.begin()];
         is_tracked[oi][current_time]=true;
 
-	//update the visual model
-	Mat_<Vec3b> tracked_roi, img_=image_hsv;
-	extract_roi(img_, tracked_roi, state_at_time[oi][current_time]); 
-	
-	if(ARGS["update_appearance"].as<bool>())
-	  appearance_model[selected_object]=get_appearance_model(current_image_hsv, state_at_time[selected_object][current_time]);
+        //update the visual model
+        Mat_<Vec3b> tracked_roi, img_=image_hsv;
+        extract_roi(img_, tracked_roi, state_at_time[oi][current_time]); 
+        
+        if(ARGS["update_appearance"].as<bool>())
+          appearance_model[oi]=get_appearance_model(current_image_hsv, state_at_time[oi][current_time]);
 
-	//	calcHist(tracked_roi, 1, 0, maskroi, hist, 1, &hsize, &phranges);
-	imshow("tracked_roi",tracked_roi);
+         //      calcHist(tracked_roi, 1, 0, maskroi, hist, 1, &hsize, &phranges);
+         //imshow("tracked_roi",tracked_roi);
       }
+    }
+    else if(state==paused){
+      if(selected_object>=0)
+        cv::ellipse(image_status, state_at_time[selected_object][current_time], get_color(selected_object),3);      
     }
 
     //draw the current position of each tracked object
@@ -473,18 +483,18 @@ int main(int argc, char* argv[]){
         break;
 
       case 'b':
-        cerr<<"Writing Background image"<<endl;
+        cerr<<"Writing Background image: "<<dirname+"/"+basename+"_bg.jpg"<<endl;
         cv::imwrite(dirname+"/"+basename+"_bg.jpg",image_tmp);
         break;
 
       case ' ':
         if(state == paused){
           state = track_object;
-	  cerr<<"Unpaused"<<endl;
+          cerr<<"Unpaused"<<endl;
         }
         else{
           state = paused;
-	  cerr<<"Paused"<<endl;
+          cerr<<"Paused"<<endl;
         }
         break;
 
@@ -512,8 +522,8 @@ int main(int argc, char* argv[]){
       case '<':
         if(state == paused){
           if(selected_object>=0)
-  	       state_at_time[selected_object][current_time].angle += 7.5;
-	  update_appearance=true;
+               state_at_time[selected_object][current_time].angle += 7.5;
+          update_appearance=true;
         }
         break;
 
@@ -522,7 +532,7 @@ int main(int argc, char* argv[]){
         if(state == paused){
           if(selected_object>=0)
             state_at_time[selected_object][current_time].angle -= 7.5;
-	  update_appearance=true;
+          update_appearance=true;
         }
         break;
 
@@ -530,40 +540,40 @@ int main(int argc, char* argv[]){
         if(state == paused){
           if(selected_object>=0)
             state_at_time[selected_object][current_time].center.y -= 1;
-	  update_appearance=true;
+          update_appearance=true;
         }
         break;
     case 's': //down
         if(state == paused){
           if(selected_object>=0)
             state_at_time[selected_object][current_time].center.y += 1;
-	  update_appearance=true;
+          update_appearance=true;
         }
         break;
     case 'd': //right
         if(state == paused){
           if(selected_object>=0)
             state_at_time[selected_object][current_time].center.x += 1;
-	  update_appearance=true;
+          update_appearance=true;
         }
         break;
     case 'a': //left
         if(state == paused){
           if(selected_object>=0)
             state_at_time[selected_object][current_time].center.x -= 1;
-	  update_appearance=true;
+          update_appearance=true;
         }
         break;
     case 'r'://increase size
       if(selected_object>=0){
-	state_at_time[selected_object][current_time].size.width *= 1.1;
-	state_at_time[selected_object][current_time].size.height *= 1.1;
+        state_at_time[selected_object][current_time].size.width *= 1.1;
+        state_at_time[selected_object][current_time].size.height *= 1.1;
       }
       break;
     case 'f'://decrease size
       if(selected_object>=0){
-	state_at_time[selected_object][current_time].size.width /= 1.1;
-	state_at_time[selected_object][current_time].size.height /= 1.1;
+        state_at_time[selected_object][current_time].size.width /= 1.1;
+        state_at_time[selected_object][current_time].size.height /= 1.1;
       }
       break;
 
